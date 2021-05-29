@@ -1,4 +1,4 @@
-package com.impressions.videoencoding
+package com.impressions.videoencoding.service
 
 import android.app.*
 import android.content.Context
@@ -7,11 +7,14 @@ import android.os.*
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
-import com.impressions.videoencoding.MainActivity
-import com.impressions.videoencoding.MainActivity.Companion.FFMPEG_FAILURE_MSG
-import com.impressions.videoencoding.MainActivity.Companion.FFMPEG_OUTPUT_FILE
-import com.impressions.videoencoding.MainActivity.Companion.MESSENGER_INTENT_KEY
-import com.impressions.videoencoding.MainActivity.Companion.OUTPUT_MIMETYPE
+import com.impressions.videoencoding.codec.FFmpegUtil
+import com.impressions.videoencoding.helper.MessageId
+import com.impressions.videoencoding.R
+import com.impressions.videoencoding.activity.MainActivity
+import com.impressions.videoencoding.activity.MainActivity.Companion.FFMPEG_FAILURE_MSG
+import com.impressions.videoencoding.activity.MainActivity.Companion.FFMPEG_OUTPUT_FILE
+import com.impressions.videoencoding.activity.MainActivity.Companion.MESSENGER_INTENT_KEY
+import com.impressions.videoencoding.activity.MainActivity.Companion.OUTPUT_MIMETYPE
 import nl.bravobit.ffmpeg.ExecuteBinaryResponseHandler
 import protect.videoeditor.IFFmpegProcessService
 import java.io.File
@@ -46,7 +49,8 @@ class FFmpegProcessService : Service() {
             mimetype: String,
             durationMs: Int
         ): Boolean {
-            val result = FFmpegUtil.init(applicationContext)
+            val result =
+                FFmpegUtil.init(applicationContext)
             if (result) {
                 val args = ffmpegArgs.toTypedArray()
                 sendMessage(MessageId.JOB_START_MSG, outputFile)
@@ -90,7 +94,10 @@ class FFmpegProcessService : Service() {
                             for (item in split) {
                                 if (item.startsWith("time=")) {
                                     val x = item.replace("time=", "")
-                                    currentTimeMs = FFmpegUtil.timestampToMs(x)
+                                    currentTimeMs =
+                                        FFmpegUtil.timestampToMs(
+                                            x
+                                        )
                                     break
                                 }
                             }
@@ -166,7 +173,8 @@ class FFmpegProcessService : Service() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createNotificationChannel(): String {
-        val channelId = NOTIFICATION_CHANNEL_ID
+        val channelId =
+            NOTIFICATION_CHANNEL_ID
         val channelName = getString(R.string.notificationChannelName)
         val chan = NotificationChannel(
             channelId,
@@ -214,6 +222,7 @@ class FFmpegProcessService : Service() {
     companion object {
         private const val TAG = "VideoTranscoder"
         private const val NOTIFICATION_ID = 1
-        private const val NOTIFICATION_CHANNEL_ID = TAG
+        private const val NOTIFICATION_CHANNEL_ID =
+            TAG
     }
 }

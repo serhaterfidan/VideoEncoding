@@ -13,7 +13,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.VideoEncoding">
         <provider
-            android:name=".ExportFileProvider"
+            android:name=".helper.ExportFileProvider"
             android:grantUriPermissions="true"
             android:exported="false"
             android:authorities="${applicationId}">
@@ -30,7 +30,7 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/nnf_provider_paths" />
         </provider>
-        <activity android:name=".MainActivity">
+        <activity android:name=".activity.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -38,12 +38,12 @@
             </intent-filter>
         </activity>
         <service
-            android:name=".FFmpegProcessService"
+            android:name=".service.FFmpegProcessService"
             android:permission="android.permission.BIND_JOB_SERVICE"
             android:exported="false"/>
 
         <activity
-            android:name=".FastScrollerFilePickerActivity"
+            android:name=".activity.FastScrollerFilePickerActivity"
             android:label="@string/app_name"
             android:theme="@style/FilePickerTheme">
             <intent-filter>

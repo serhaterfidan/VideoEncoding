@@ -1,9 +1,10 @@
-package com.impressions.videoencoding;
+package com.impressions.videoencoding.fragment;
 
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.impressions.videoencoding.R;
 import com.nononsenseapps.filepicker.FilePickerFragment;
 
 public class FastScrollerFilePickerFragment extends FilePickerFragment {

@@ -1,4 +1,4 @@
-package com.impressions.videoencoding;
+package com.impressions.videoencoding.codec;
 
 import java.util.ArrayList;
 import java.util.Arrays;

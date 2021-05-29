@@ -1,4 +1,4 @@
-package com.impressions.videoencoding
+package com.impressions.videoencoding.activity
 
 import android.Manifest
 import android.app.Activity
@@ -9,13 +9,18 @@ import android.os.*
 import android.preference.PreferenceManager
 import android.util.Log
 import android.view.View
-import android.widget.AdapterView
-import android.widget.AdapterView.OnItemSelectedListener
-import android.widget.ArrayAdapter
+import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.FileProvider
+import com.impressions.videoencoding.*
+import com.impressions.videoencoding.codec.*
+import com.impressions.videoencoding.helper.MessageId
+import com.impressions.videoencoding.helper.ResultCallbackHandler
+import com.impressions.videoencoding.helper.UriSaveTask
+import com.impressions.videoencoding.service.FFmpegProcessService
 import com.nononsenseapps.filepicker.BuildConfig
 import com.nononsenseapps.filepicker.FilePickerActivity
 import com.nononsenseapps.filepicker.Utils
@@ -23,11 +28,10 @@ import kotlinx.android.synthetic.main.activity_main.*
 import org.javatuples.Triplet
 import protect.videoeditor.IFFmpegProcessService
 import java.io.File
+import java.lang.ref.WeakReference
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
-
-    private val TAG = "VideoTranscoder"
 
     private val SHARED_PREFS_KEY = "protect.videotranscoder"
     private val PICKER_DIR_PREF = "picker-start-path"
@@ -40,7 +44,6 @@ class MainActivity : AppCompatActivity() {
         SEND_INTENT_TMP_FILENAME
     )
 
-
     companion object {
         val MESSENGER_INTENT_KEY =
             BuildConfig.APPLICATION_ID + ".MESSENGER_INTENT_KEY"
@@ -49,6 +52,8 @@ class MainActivity : AppCompatActivity() {
         val FFMPEG_FAILURE_MSG =
             BuildConfig.APPLICATION_ID + ".FFMPEG_FAILURE_MSG"
         val OUTPUT_MIMETYPE = BuildConfig.APPLICATION_ID + ".OUTPUT_MIMETYPE"
+
+        val TAG = "VideoTranscoder"
     }
 
     // A callback when a permission check is attempted and succeeds.
@@ -183,7 +188,8 @@ class MainActivity : AppCompatActivity() {
                     if (result != null) {
                         videoInfo?.fileBaseName = null
                     } else {
-                        Toast.makeText(this@MainActivity, R.string.invalidMediaFile, Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@MainActivity,
+                            R.string.invalidMediaFile, Toast.LENGTH_LONG).show()
                     }
 
                     startEncode()
@@ -196,7 +202,8 @@ class MainActivity : AppCompatActivity() {
 
         if(videoInfo == null)
         {
-            Toast.makeText(this, R.string.selectFileFirst, Toast.LENGTH_LONG).show();
+            Toast.makeText(this,
+                R.string.selectFileFirst, Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -224,12 +231,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         val startTimeSec = 0
-        val endTimeSec = 20
 
         val durationSec = (videoInfo?.durationMs!!/1000).toInt()
 
-        startEncode(inputFilePath!!, startTimeSec, endTimeSec, durationSec, videoInfo?.container!!, VideoCodec.H264,
-                    1, "960x540", "24", AudioCodec.AAC, 44100, "2",
+        val endTimeSec = if (durationSec > 20) durationSec else 20
+
+        startEncode(inputFilePath!!, startTimeSec, endTimeSec, durationSec, videoInfo?.container!!,
+            VideoCodec.H264,
+                    1000000, "960x540", "24",
+            AudioCodec.AAC, 44100, "2",
                     64, destination.absolutePath);
     }
 
@@ -252,7 +262,8 @@ class MainActivity : AppCompatActivity() {
                 AlertDialog.Builder(this@MainActivity)
                     .setMessage(R.string.writePermissionExplanation)
                     .setCancelable(true)
-                    .setPositiveButton(R.string.ok
+                    .setPositiveButton(
+                        R.string.ok
                     ) { dialog, _ -> dialog.dismiss() }
                     .setNegativeButton(
                         R.string.permissionRequestAgain
@@ -331,15 +342,19 @@ class MainActivity : AppCompatActivity() {
         val inputFilePath = intent.getStringExtra("inputVideoFilePath")
         val destinationFilePath = intent.getStringExtra("outputFilePath")
         val mediaContainerStr = intent.getStringExtra("mediaContainer")
-        val container = MediaContainer.fromName(mediaContainerStr)
+        val container = MediaContainer.fromName(
+            mediaContainerStr
+        )
         val videoCodecStr = intent.getStringExtra("videoCodec")
-        val videoCodec = VideoCodec.fromName(videoCodecStr)
+        val videoCodec =
+            VideoCodec.fromName(videoCodecStr)
         val tmpCideoBitrateK = intent.getIntExtra("videoBitrateK", -1)
         val videoBitrateK = if (tmpCideoBitrateK != -1) tmpCideoBitrateK else null
         val resolution = intent.getStringExtra("resolution")
         val fps = intent.getStringExtra("fps")
         val audioCodecStr = intent.getStringExtra("audioCodec")
-        val audioCodec = AudioCodec.fromName(audioCodecStr)
+        val audioCodec =
+            AudioCodec.fromName(audioCodecStr)
         val tmpAudioSampleRate = intent.getIntExtra("audioSampleRate", -1)
         val audioSampleRate = if (tmpAudioSampleRate != -1) tmpAudioSampleRate else null
         val audioChannel = intent.getStringExtra("audioChannel")
@@ -649,16 +664,173 @@ class MainActivity : AppCompatActivity() {
 
                 } else {
                     Log.w(TAG, "Failed to received file from send intent")
-                    Toast.makeText(this, R.string.failedToReceiveSharedData, Toast.LENGTH_LONG)
+                    Toast.makeText(
+                        this,
+                        R.string.failedToReceiveSharedData, Toast.LENGTH_LONG
+                    )
                         .show()
                 }
             }
         if (dataUri != null) {
             val saveTask =
-                UriSaveTask(this, dataUri, SEND_INTENT_TMP_FILE, callback)
+                UriSaveTask(
+                    this,
+                    dataUri,
+                    SEND_INTENT_TMP_FILE,
+                    callback
+                )
             saveTask.execute()
         } else {
             callback.onResult(false)
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Log.i(TAG, "Establishing messenger with service")
+        // Start service and provide it a way to communicate with this class.
+        val startServiceIntent = Intent(this, FFmpegProcessService::class.java)
+        // Handler for incoming messages from the service.
+        val msgHandler =
+            IncomingMessageHandler(
+                this
+            )
+        val messengerIncoming = Messenger(msgHandler)
+        startServiceIntent.putExtra(MESSENGER_INTENT_KEY, messengerIncoming)
+        startService(startServiceIntent)
+    }
+
+    override fun onStop() {
+        // A service can be "started" and/or "bound". In this case, it's "started" by this Activity
+        // and "bound" to the JobScheduler (also called "Scheduled" by the JobScheduler). This call
+        // to stopService() won't prevent scheduled jobs to be processed. However, failing
+        // to call stopService() would keep it alive indefinitely.
+        stopService(Intent(this, FFmpegProcessService::class.java))
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        // If the tmp file for SEND intents still exists, remove it as it is no longer needed.
+        if (SEND_INTENT_TMP_FILE.exists()) {
+            val result: Boolean = SEND_INTENT_TMP_FILE.delete()
+            if (!result) {
+                Log.w(
+                    TAG,
+                    "Failed to delete tmp SEND intent file on exit"
+                )
+            }
+        }
+        super.onDestroy()
+    }
+
+    /**
+     * A [Handler] allows you to send messages associated with a thread. A [Messenger]
+     * uses this handler to communicate from [protect.videotranscoder.service.FFmpegProcessService].
+     * It's also used to make the start and stop views blink for a short period of time.
+     */
+    private class IncomingMessageHandler internal constructor(activity: MainActivity) :
+        Handler() {
+        // Prevent possible leaks with a weak reference.
+        private val activityRef: WeakReference<MainActivity> = WeakReference(activity)
+        override fun handleMessage(msg: Message) {
+            val mainActivity = activityRef.get()
+                ?: // Activity is no longer available, exit.
+                return
+            val messageId =
+                MessageId.fromInt(msg.what)
+            when (MessageId.fromInt(msg.what)) {
+                MessageId.JOB_START_MSG -> Log.d(
+                    TAG,
+                    "JOB_START_MSG: " + msg.obj.toString()
+                )
+                MessageId.JOB_PROGRESS_MSG -> {
+                    val percentComplete = msg.obj as Int?
+                    if (percentComplete != null && percentComplete > 0) {
+                        Log.d(TAG, "JOB_PROGRESS_MSG: $percentComplete")
+                        val progressBar: ProgressBar =
+                            mainActivity.findViewById(R.id.encodeProgress)
+                        progressBar.isIndeterminate = false
+                        progressBar.progress = percentComplete
+                    }
+                }
+                MessageId.JOB_SUCCEDED_MSG, MessageId.JOB_FAILED_MSG -> {
+                    var result = false
+                    var outputFile: String? = null
+                    var mimetype: String? = null
+                    var message: String? = null
+                    if (messageId === MessageId.JOB_SUCCEDED_MSG) {
+                        result = true
+                        outputFile = (msg.obj as Bundle).getString(FFMPEG_OUTPUT_FILE)
+                        mimetype = (msg.obj as Bundle).getString(OUTPUT_MIMETYPE)
+                    } else {
+                        message = (msg.obj as Bundle).getString(FFMPEG_FAILURE_MSG)
+                    }
+                    Log.d(TAG, "Job complete, result: $result")
+                    showEncodeCompleteDialog(mainActivity, result, message, outputFile, mimetype)
+                }
+                MessageId.FFMPEG_UNSUPPORTED_MSG -> Log.d(
+                    TAG,
+                    "FFMPEG_UNSUPPORTED_MSG"
+                )
+                MessageId.UNKNOWN_MSG -> Log.w(
+                    TAG, "UNKNOWN_MSG received")
+            }
+        }
+
+        private fun showEncodeCompleteDialog(
+            mainActivity: MainActivity, result: Boolean,
+            ffmpegMessage: String?, outputFile: String?,
+            mimetype: String?
+        ) {
+            Log.d(TAG, "Encode result: $result")
+            val intent = mainActivity.intent
+            val action = intent.action
+            val skipDialog = intent.getBooleanExtra("skipDialog", false)
+            if (skipDialog) {
+                mainActivity.finish()
+                return
+            }
+            val message: String = if (result) {
+                mainActivity.resources.getString(R.string.transcodeSuccess, outputFile)
+            } else {
+                mainActivity.resources.getString(R.string.transcodeFailed, ffmpegMessage)
+            }
+            val builder = AlertDialog.Builder(mainActivity)
+                .setMessage(message)
+                .setCancelable(true)
+                .setOnDismissListener {
+                    if (action != null && action.contains("ENCODE")) {
+                        // This activity was launched to encode this file,
+                        // finish it off when complete.
+                        mainActivity.finish()
+                    }
+                }
+                .setPositiveButton(
+                    R.string.ok
+                ) { dialog, _ -> dialog.dismiss() }
+            if (result) {
+                val outputUri: Uri = FileProvider.getUriForFile(
+                    mainActivity,
+                    com.impressions.videoencoding.BuildConfig.APPLICATION_ID,
+                    File(outputFile)
+                )
+                val sendLabel =
+                    mainActivity.resources.getText(R.string.sendLabel)
+                builder.setNeutralButton(
+                    sendLabel
+                ) { dialog, which ->
+                    val sendIntent = Intent(Intent.ACTION_SEND)
+                    sendIntent.putExtra(Intent.EXTRA_STREAM, outputUri)
+                    sendIntent.type = mimetype
+
+                    // set flag to give temporary permission to external app to use the FileProvider
+                    sendIntent.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    mainActivity.startActivity(Intent.createChooser(sendIntent, sendLabel))
+                }
+            }
+            builder.show()
+            mainActivity.updateUiForVideoSettings()
+        }
+
     }
 }

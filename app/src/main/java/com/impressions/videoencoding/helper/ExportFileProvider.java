@@ -1,4 +1,4 @@
-package com.impressions.videoencoding;
+package com.impressions.videoencoding.helper;
 
 import androidx.core.content.FileProvider;
 

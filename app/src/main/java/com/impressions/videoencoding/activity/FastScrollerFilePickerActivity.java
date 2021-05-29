@@ -4,12 +4,13 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-package com.impressions.videoencoding;
+package com.impressions.videoencoding.activity;
 
 import android.os.Environment;
 
 import androidx.annotation.Nullable;
 
+import com.impressions.videoencoding.fragment.FastScrollerFilePickerFragment;
 import com.nononsenseapps.filepicker.AbstractFilePickerActivity;
 import com.nononsenseapps.filepicker.AbstractFilePickerFragment;
 

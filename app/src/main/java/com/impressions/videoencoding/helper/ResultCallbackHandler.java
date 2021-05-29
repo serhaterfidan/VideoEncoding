@@ -1,4 +1,4 @@
-package com.impressions.videoencoding;
+package com.impressions.videoencoding.helper;
 
 /**
  * A callback when an async call completes and has a result to return.

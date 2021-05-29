@@ -4,6 +4,7 @@
     <string name="welcomeText">Welcome to video encoding</string>
 
     <string name="ok">OK</string>
+    <string name="sendLabel">Send&#8230;</string>
     <string name="encode">Encode</string>
     <string name="cancel">Cancel</string>
 

@@ -1,4 +1,4 @@
-package com.impressions.videoencoding;
+package com.impressions.videoencoding.codec;
 
 import android.content.Context;
 import android.graphics.Movie;
@@ -8,6 +8,7 @@ import androidx.annotation.NonNull;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.impressions.videoencoding.helper.ResultCallbackHandler;
 
 import java.io.File;
 import java.io.IOException;

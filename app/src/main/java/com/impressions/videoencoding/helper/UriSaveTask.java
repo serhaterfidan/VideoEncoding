@@ -1,4 +1,4 @@
-package com.impressions.videoencoding;
+package com.impressions.videoencoding.helper;
 
 import android.content.Context;
 import android.content.DialogInterface;
@@ -11,6 +11,8 @@ import androidx.appcompat.app.AlertDialog;
 
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Closeables;
+import com.impressions.videoencoding.R;
+import com.impressions.videoencoding.helper.ResultCallbackHandler;
 
 import java.io.File;
 import java.io.FileOutputStream;

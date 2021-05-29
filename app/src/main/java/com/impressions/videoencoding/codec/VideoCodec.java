@@ -1,6 +1,8 @@
-package com.impressions.videoencoding;
+package com.impressions.videoencoding.codec;
 
 import androidx.annotation.Nullable;
+
+import com.impressions.videoencoding.R;
 
 import java.util.Arrays;
 import java.util.Collections;
