@@ -75,7 +75,7 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        if (FFmpegUtil.init(applicationContext) === false) {
+        if (!FFmpegUtil.init(applicationContext)) {
             showUnsupportedExceptionDialog()
         }
 
